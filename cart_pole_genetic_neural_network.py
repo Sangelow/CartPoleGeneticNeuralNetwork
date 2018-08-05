@@ -174,21 +174,23 @@ if __name__ == "__main__":
 
     generation_size = 20
     mutation_rate = 5/100
+    generation_number = 1
 
     print("""{:^20}""".format("Generation : 1"))
     generation = Generation(env,generation_size,mutation_rate,None)
     best_individuals = [generation.best_individual]
     print("""Best individual fitness : {}""".format(best_individuals[-1].fitness))
 
-    while best_individuals[-1].fitness < 100:
-        print("""{:^20}""".format("Generation : {}".format(len(generations)+1)))
+    while best_individuals[-1].fitness < 600:
+        generation_number += 1
+        print("""{:^20}""".format("Generation : {}".format(generation_number)))
         generation = Generation(env,generation_size,mutation_rate,best_individuals[-1])
         best_individuals.append(generation.best_individual)
         print("""Best individual fitness : {}""".format(best_individuals[-1].fitness))
 
     best_individuals[-1].save()
     best_individuals[-1].replay()
-    #  env.close()
+    env.close()
 
 # TODO :    - change the mutation/breeding method (try to do the crossover + mutation)
 
