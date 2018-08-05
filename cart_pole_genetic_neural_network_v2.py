@@ -18,12 +18,12 @@ plt.rc('legend', fontsize=11, frameon=True, fancybox=True,framealpha=0.5,facecol
 
 class Generation:
 
-    def __init__(self,env,size,parent_number,mutation_rate,parents=None):
+    def __init__(self,env,size,parent_number,mutation_rate,parents_pool=None):
         self.env = env
         self.size = size
         self.parent_number = parent_number
         self.mutation_rate = mutation_rate
-        self.parents = parents
+        self.parents_pool = parents_pool
 
         self.population = []
         self.generate_population()
@@ -31,23 +31,23 @@ class Generation:
         # self.best_individual.replay()
 
     def generate_population(self):
-        if self.parents != None:
-            self.population += self.parents
+        future_parents = None
+        if self.parents_pool != None:
+            self.population += self.parents_pool
         for i in range(self.size-len(self.population)):
             # Choose parents only if they exists
-            if self.parents != None:
-                individual_1 = random.choice(self.parents)
-                individual_2 = random.choice(self.parents)
-                while mom.id == dad.id:
-                    individual_2 = random.choice(self.parents)
-            self.population.append(Individual(self.env,self.mutation_rate,self.parents))
+            if self.parents_pool != None:
+                individual_1 = random.choice(self.parents_pool)
+                individual_2 = random.choice(self.parents_pool)
+                while individual_1.id == individual_2.id:
+                    individual_2 = random.choice(self.parents_pool)
+                future_parents = [individual_1,individual_2]
+
+            self.population.append(Individual(self.env,self.mutation_rate, future_parents))
 
     def find_best_individuals(self):
         self.population.sort(key=lambda indiv : indiv.fitness, reverse=True)
         self.best_individuals = self.population[:self.parent_number]
-
-    def crossover(self):
-        pass
 
 
 class Individual:
@@ -89,7 +89,8 @@ class Individual:
 
         self.weights = [input_layer,hidden_layer,output_layer]
 
-    def crossover_parents():
+    def crossover_parents(self):
+        self.weights = []
         for i in range(len(self.parents[0].weights)):
             weights_choice = np.random.choice([True, False], size=self.parents[0].weights[i][0].shape)
             biases_choice = np.random.choice([True, False], size=self.parents[0].weights[i][1].shape)
@@ -105,7 +106,7 @@ class Individual:
             biaise_layer = self.weights[i][1]
             weight = np.add(weight_layer, np.random.standard_normal(weight_layer.shape) * self.mutation_rate)
             biase = np.add(biaise_layer, np.random.standard_normal(biaise_layer.shape) * self.mutation_rate)
-            self.weights.append([weight,biase])
+            self.weights[i] = [weight,biase]
 
     def build_model(self):
         self.model = Sequential()
@@ -190,28 +191,28 @@ if __name__ == "__main__":
     env_name = 'CartPole-v1' 
     env = gym.make(env_name)
 
-    generation_size = 20
+    generation_size = 10
     mutation_rate = 5/100
     parent_number = int(0.2 * generation_size)
 
     generation_number = 1
+    best_individuals = []
 
     print("""{:^20}""".format("Generation : 1"))
     generation = Generation(env,generation_size,parent_number,mutation_rate,None)
-    best_individuals = [generation.best_individual]
-    print("""Best individual fitness : {}""".format(best_individuals[-1].fitness))
+    best_individuals.append(generation.best_individuals)
+    print("""Best individual fitness : {}""".format(best_individuals[-1][0].fitness))
 
-    while best_individuals[-1].fitness < 500:
+    while best_individuals[-1][0].fitness < 500:
         generation_number += 1
         print("""{:^20}""".format("Generation : {}".format(generation_number)))
         generation = Generation(env,generation_size,parent_number,mutation_rate,best_individuals[-1])
-        best_individuals.append(generation.best_individual)
-        print("""Best individual fitness : {}""".format(best_individuals[-1].fitness))
+        best_individuals.append(generation.best_individuals)
+        print("""Best individual fitness : {}""".format(best_individuals[-1][0].fitness))
 
-    best_individuals[-1].save()
-    best_individuals[-1].replay()
+    best_individuals[-1][0].save()
+    best_individuals[-1][0].replay()
     env.close()
 
-# TODO :    - try to select a number of best individual and then to do crossover with them (for each weight and biaises choose randomly between mom and dad)
-#           - create a random array with the size of the weights, if element <= 0 ==> choose mom element, else choose dad element
+# TODO :    - change the mutation policy (do not mutate all but just some random individual)
 #           - find best individual using a distribution that is more likely to choose an inidividual with a high fitness
