@@ -4,6 +4,8 @@ from keras.models import Sequential
 from keras.layers import Dense, Activation
 import numpy as np
 import random
+import os
+import pickle
 import matplotlib.pyplot as plt
 
 plt.style.use('seaborn-darkgrid')
@@ -154,14 +156,18 @@ class Individual:
             if done:
                 break
 
+    def save(self):
+        file_name = "saved_models/model_{}".format(len(os.listdir("saved_models/")))
+        with open(file_name,"wb") as f:
+            pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
 if __name__ == "__main__":
     # initialize gym environment and the agent
     env_name = 'CartPole-v1' 
     env = gym.make(env_name)
 
-    generation_size = 10
-    mutation_rate = 10/100
+    generation_size = 20
+    mutation_rate = 5/100
 
     print("""{:^20}""".format("Generation : 1"))
     generations = [Generation(env,generation_size,mutation_rate,None)]
@@ -174,6 +180,7 @@ if __name__ == "__main__":
         best_individuals.append(generations[-1].best_individual)
         print("""Best individual fitness : {}""".format(best_individuals[-1].fitness))
 
+    best_individuals[-1].replay()
     env.close()
 
 # TODO :    - change the mutation/breeding method (try to do the crossover + mutation)
