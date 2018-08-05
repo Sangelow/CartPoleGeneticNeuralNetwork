@@ -161,6 +161,12 @@ class Individual:
         with open(file_name,"wb") as f:
             pickle.dump(self, f, pickle.HIGHEST_PROTOCOL)
 
+    def load(self,file_name):
+        with open(file_name "rb") as f:
+            loaded_individual = pickle.load(f)
+            # Now you can use the dump object as the original one  
+            self.weights= loaded_individual.weights
+
 if __name__ == "__main__":
     # initialize gym environment and the agent
     env_name = 'CartPole-v1' 
@@ -174,12 +180,13 @@ if __name__ == "__main__":
     best_individuals = [generations[-1].best_individual]
     print("""Best individual fitness : {}""".format(best_individuals[-1].fitness))
 
-    while best_individuals[-1].fitness < 500:
+    while best_individuals[-1].fitness < 100:
         print("""{:^20}""".format("Generation : {}".format(len(generations)+1)))
         generations.append(Generation(env,generation_size,mutation_rate,best_individuals[-1]))
         best_individuals.append(generations[-1].best_individual)
         print("""Best individual fitness : {}""".format(best_individuals[-1].fitness))
 
+    best_individuals[-1].save()
     best_individuals[-1].replay()
     env.close()
 
