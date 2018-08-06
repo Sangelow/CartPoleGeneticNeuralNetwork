@@ -2,77 +2,167 @@ import random
 import copy
 from graphviz import Digraph
 import uuid
+from abc import ABC, abstractmethod
 
-def compatibility_distance(genome_1,genome_2,c1,c2,c3):
-    E = count_excess_genes(genome_1,genome_2)
-    D = count_disjoint_genes(genome_1,genome_2)
-    N = count_larger_gene_number(genome_1,genome_2)
-    W = calculate_average_weight_matching_genes(genome_1,genome_2)
-    return c1*E/N + c2*D/N + c3*W
+class Evaluator(ABC):
 
-def calculate_average_weight_matching_genes(genome_1,genome_2):
-    weight_differences_sum = 0
-    matching_number = 0
-    for innovation_number in genome_1.connection_genes.keys():
-        if innovation_number in list(genome_2.connection_genes.keys()):
-            weight_differences_sum += abs(genome_1.connection_genes[innovation_number].weight - genome_2.connection_genes[innovation_number].weight)
-            matching_number += 1
-    return weight_differences_sum /matching_number
+    def __init__(self,first_genome, population_size):
+        self.genomes = [first_genome]
+        self.species = []
+        self.population_size = population_size
 
-def count_matching_genes(genome_1,genome_2):
-    matching_genes_number = 0
-    # Count the number of matching nodes
-    for innovation_number in genome_1.node_genes.keys():
-        if innovation_number in list(genome_2.node_genes.keys()):
-            matching_genes_number +=1
-    # Count the number of mathcing connections
-    for innovation_number in genome_1.connection_genes.keys():
-        if innovation_number in list(genome_2.connection_genes.keys()):
-            matching_genes_number +=1
-    return matching_genes_number
+        self.genome_fitness = {} # Dictionnary (key: genome, value: fitness)
+        self.genome_species = {} # Dictionnary (key: genome, value: species)
 
-def count_disjoint_genes(genome_1,genome_2):
-    disjoint_genes_number = 0
-    max_innovation_number_1 = max(genome_1.connection_genes.keys())
-    max_innovation_number_2 = max(genome_2.connection_genes.keys())
-    smallest_max_innovation_number = min(max_innovation_number_1,max_innovation_number_2)
-    for innovation_number in range(1,smallest_max_innovation_number+1):
-        # Count the number of disjoint nodes
-        if innovation_number in list(genome_1.node_genes.keys()) and not(innovation_number in list(genome_2.node_genes.keys())):
-            disjoint_genes_number += 1
-        if not(innovation_number in list(genome_1.node_genes.keys())) and innovation_number in list(genome_2.node_genes.keys()):
-            disjoint_genes_number += 1
-        # Count the number of disjoint connection
-        if innovation_number in list(genome_1.connection_genes.keys()) and not(innovation_number in list(genome_2.connection_genes.keys())):
-            disjoint_genes_number += 1
-        if not(innovation_number in list(genome_1.connection_genes.keys())) and innovation_number in list(genome_2.connection_genes.keys()):
-            disjoint_genes_number += 1
-    return disjoint_genes_number
+        self.fittest_genome = None
+        self.highest_score = None
 
-def count_excess_genes(genome_1,genome_2):
-    excess_genes_number = 0
-    max_innovation_number_1 = max(genome_1.connection_genes.keys())
-    max_innovation_number_2 = max(genome_2.connection_genes.keys())
-    smallest_max_innovation_number = min(max_innovation_number_1,max_innovation_number_2)
-    greatest_max_innovation_number = max(max_innovation_number_1,max_innovation_number_2)
-    for innovation_number in range(1,greatest_max_innovation_number+1):
-        # Count the number of excess nodes
-        if innovation_number in list(genome_1.node_genes.keys()) and not(innovation_number in list(genome_2.node_genes.keys()))  and innovation_number > smallest_max_innovation_number:
-            excess_genes_number += 1
-        if not(innovation_number in list(genome_1.node_genes.keys())) and innovation_number in list(genome_2.node_genes.keys())  and innovation_number > smallest_max_innovation_number:
-            excess_genes_number += 1
-        # Count the number of excess connection
-        if innovation_number in list(genome_1.connection_genes.keys()) and not(innovation_number in list(genome_2.connection_genes.keys()))  and innovation_number > smallest_max_innovation_number:
-            excess_genes_number += 1
-        if not(innovation_number in list(genome_1.connection_genes.keys())) and innovation_number in list(genome_2.connection_genes.keys())  and innovation_number > smallest_max_innovation_number:
-            excess_genes_number += 1
-    return excess_genes_number
+        self.next_generation_genomes = []
 
-def count_larger_gene_number(genome_1,genome_2):
-    gene_number_1 = len(genome_1.node_genes) + len(genome_1.connection_genes)
-    gene_number_2 = len(genome_2.node_genes) + len(genome_2.connection_genes)
-    return max(gene_number_1,gene_number_2)
+        # Initialise from a single genome <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
+    @abstractmethod
+    def evaluate_genome(self):
+        pass
+
+    def evaluate(self):
+        # Reset the Evaluator
+        self.reset()
+        # Place genome into species
+        self.place_genomes_into_species()
+        # Remove dormant species
+        self.remove_dormant_species()
+        # Evaluate genome and assign fitness
+        self.evaluate_genomes()
+        # Put best genome of each generation into the next generation
+        self.start_next_generation()
+        # Breed the rest of the genome
+        self.complete_next_generation()
+
+    def reset(self):
+        for species in self.species:
+            species.reset()
+        self.genome_fitness.clear()
+        self.genome_species.clear()
+        self.next_generation_genomes.clear()
+
+    def place_genomes_into_species(self):
+        global compatibility_distance_threshold
+
+        for genome in self.genomes:
+            found_species = False
+            for species in self.species:
+                if Genome.compatibility_distance(self.species.mascot, genome) < compatibility_distance_threshold:
+                    self.species.add_genome(genome)
+                    self.genome_species[genome] = species
+                    found_species = True
+                    break
+            if not(found_species):
+                # If nothing is found, create a new species
+                new_species = Species(genome)
+                self.species.append(new_species)
+                self.genome_species[genome] = new_species
+
+    def remove_dormant_species(self):
+        for species in self.species:
+            if not(species):
+                self.species.remove(species)
+
+    def evaluate_genomes(self):
+
+        for genome in self.genomes:
+            genome_species = self.genome_species[genome]
+            fitness = self.evaluate_genome(genome)
+            adjusted_fitness = fitness / len(genome_species.genomes)
+
+            self.genome_fitness[genome] = adjusted_fitness
+            genome_species.add_adjusted_fitness(adjusted_fitness)
+            genome_species.add_genome_fitness(genome, adjusted_fitness)
+
+            if adjusted_fitness > self.highest_score:
+                self.highest_score = adjusted_fitness
+                self.fittest_genome = genome
+
+    def start_next_generation(self):
+        for species in self.species:
+            fittest_genome = max(species.genome_fitness, key=species.genome_fitness.get)
+            next_generation_genomes.append(fittest_genome)
+
+    def complete_next_generation(self):
+
+        global mutation_rate
+        global add_connection_mutation_chance
+        global add_node_mutation_chance
+
+        while len(self.next_generation_genomes) < self.population_size:
+            species = get_random_species_biased_adjusted_fitness()
+
+            genome_1 = get_random_genome_biased_adjusted_fitness(species)
+            genome_2 = get_random_genome_biased_adjusted_fitness(species)
+
+            if self.genome_fitness[genome_1] >= self.genome_fitness[genome_2]:
+                child = Genome.crossover(genome_1,genome_2)
+            else:
+                child = Genome.crossover(genome_2,genome_1)
+
+            if random.random() < mutation_rate:
+                child.mutate()
+
+            if random.random() < add_connection_mutation_chance:
+                child.add_connection_gene_mutation()
+
+            if random.random() < add_node_mutation_chance:
+                child.add_node_gene_mutation()
+
+            self.next_generation_genomes.append(child)
+
+        self.genomes = self.next_generation_genomes
+        self.next_generation_genomes = []
+
+    def get_random_species_biased_adjusted_fitness(self):
+        total_fitness = 0
+        for species in self.species:
+            total_fitness += species.total_adjusted_fitness
+        goal_fitness = random.uniform(0,total_fitness)
+        count_fitness = 0
+        for species in self.species:
+            count_fitness += species.total_adjusted_fitness
+            if count_fitness >= goal_fitness:
+                return species
+
+    def get_random_genome_biased_adjusted_fitness(self,species):
+        total_fitness = 0
+        for genome in species.genomes:
+            total_fitness += species.genome_fitness[genome]
+        goal_fitness = random.uniform(0,total_fitness)
+        count_fitness = 0
+        for genome in species.genomes:
+            count_fitness += species.genome_fitness[genome]
+            if count_fitness >= goal_fitness:
+                return genome
+
+class Species():
+
+    def __init__(self,genome):
+        self.genomes = [genome]
+        self.mascot = genome
+        self.genome_fitness = {} # Dictionnary (key: genome, value: fitness) <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< how to update that
+        self.total_adjusted_fitness = 0
+
+    def add_genome(self,genome):
+        self.genomes.append[genome]
+
+    def add_adjusted_fitness(self, adjusted_fitness):
+        self.total_adjusted_fitness += adjusted_fitness
+
+    def add_genome_fitness(self,genome,adjusted_fitness):
+        self.genome_fitness[genome] = adjusted_fitness
+
+    def reset(self):
+        self.mascot = random.choice(self.genomes)
+        self.genomes.clear()
+        self.genome_fitness.clear()
+        self.total_adjusted_fitness = 0
 
 
 class Genome():
@@ -80,6 +170,7 @@ class Genome():
     def __init__(self, connection_genes, node_genes):
         self.connection_genes = connection_genes
         self.node_genes = node_genes
+
 
     def __repr__(self):
         return "Number of node genes : {}. Number of connection genes : {}.".format(len(self.node_genes),len(self.connection_genes))
@@ -141,11 +232,9 @@ class Genome():
         self.add_connection_gene(new_connection_1)
         self.add_connection_gene(new_connection_2)
 
-    def weight_mutation(self):
-        global weight_mutation_chance
-        if random.random() < weight_mutation_chance:
-            for connection in list(self.connection_genes.values()):
-                connection.mutate_weight()
+    def mutate(self):
+        for connection in list(self.connection_genes.values()):
+            connection.mutate_weight()
 
     def crossover(parent1,parent2):
         # Notice that the parent1 is the most fit parent.
@@ -193,7 +282,79 @@ class Genome():
                 graph.edge(str(connection.in_node),str(connection.out_node), label=str(connection.innovation_number))
 
         graph.view()
-    
+
+    def compatibility_distance(genome_1,genome_2):
+        global c1
+        global c2
+        global c3
+        E = Genome.count_excess_genes(genome_1,genome_2)
+        D = Genome.count_disjoint_genes(genome_1,genome_2)
+        N = Genome.count_larger_gene_number(genome_1,genome_2)
+        W = Genome.calculate_average_weight_matching_genes(genome_1,genome_2)
+        return c1*E/N + c2*D/N + c3*W
+
+    def calculate_average_weight_matching_genes(genome_1,genome_2):
+        weight_differences_sum = 0
+        matching_number = 0
+        for innovation_number in genome_1.connection_genes.keys():
+            if innovation_number in list(genome_2.connection_genes.keys()):
+                weight_differences_sum += abs(genome_1.connection_genes[innovation_number].weight - genome_2.connection_genes[innovation_number].weight)
+                matching_number += 1
+        return weight_differences_sum /matching_number
+
+    def count_matching_genes(genome_1,genome_2):
+        matching_genes_number = 0
+        # Count the number of matching nodes
+        for innovation_number in genome_1.node_genes.keys():
+            if innovation_number in list(genome_2.node_genes.keys()):
+                matching_genes_number +=1
+        # Count the number of mathcing connections
+        for innovation_number in genome_1.connection_genes.keys():
+            if innovation_number in list(genome_2.connection_genes.keys()):
+                matching_genes_number +=1
+        return matching_genes_number
+
+    def count_disjoint_genes(genome_1,genome_2):
+        disjoint_genes_number = 0
+        max_innovation_number_1 = max(genome_1.connection_genes.keys())
+        max_innovation_number_2 = max(genome_2.connection_genes.keys())
+        smallest_max_innovation_number = min(max_innovation_number_1,max_innovation_number_2)
+        for innovation_number in range(1,smallest_max_innovation_number+1):
+            # Count the number of disjoint nodes
+            if innovation_number in list(genome_1.node_genes.keys()) and not(innovation_number in list(genome_2.node_genes.keys())):
+                disjoint_genes_number += 1
+            if not(innovation_number in list(genome_1.node_genes.keys())) and innovation_number in list(genome_2.node_genes.keys()):
+                disjoint_genes_number += 1
+            # Count the number of disjoint connection
+            if innovation_number in list(genome_1.connection_genes.keys()) and not(innovation_number in list(genome_2.connection_genes.keys())):
+                disjoint_genes_number += 1
+            if not(innovation_number in list(genome_1.connection_genes.keys())) and innovation_number in list(genome_2.connection_genes.keys()):
+                disjoint_genes_number += 1
+        return disjoint_genes_number
+
+    def count_excess_genes(genome_1,genome_2):
+        excess_genes_number = 0
+        max_innovation_number_1 = max(genome_1.connection_genes.keys())
+        max_innovation_number_2 = max(genome_2.connection_genes.keys())
+        smallest_max_innovation_number = min(max_innovation_number_1,max_innovation_number_2)
+        greatest_max_innovation_number = max(max_innovation_number_1,max_innovation_number_2)
+        for innovation_number in range(1,greatest_max_innovation_number+1):
+            # Count the number of excess nodes
+            if innovation_number in list(genome_1.node_genes.keys()) and not(innovation_number in list(genome_2.node_genes.keys()))  and innovation_number > smallest_max_innovation_number:
+                excess_genes_number += 1
+            if not(innovation_number in list(genome_1.node_genes.keys())) and innovation_number in list(genome_2.node_genes.keys())  and innovation_number > smallest_max_innovation_number:
+                excess_genes_number += 1
+            # Count the number of excess connection
+            if innovation_number in list(genome_1.connection_genes.keys()) and not(innovation_number in list(genome_2.connection_genes.keys()))  and innovation_number > smallest_max_innovation_number:
+                excess_genes_number += 1
+            if not(innovation_number in list(genome_1.connection_genes.keys())) and innovation_number in list(genome_2.connection_genes.keys())  and innovation_number > smallest_max_innovation_number:
+                excess_genes_number += 1
+        return excess_genes_number
+
+    def count_larger_gene_number(genome_1,genome_2):
+        gene_number_1 = len(genome_1.node_genes) + len(genome_1.connection_genes)
+        gene_number_2 = len(genome_2.node_genes) + len(genome_2.connection_genes)
+        return max(gene_number_1,gene_number_2)
 
 
 
@@ -262,9 +423,18 @@ if __name__ == "__main__":
 
     historical_marker = HistoricalMarker()
 
-    weight_mutation_chance = 0.8
+    mutation_rate = 0.8
     probabilty_perturbating = 0.9
     standard_deviation_weight_perturbation = 0.08
+
+    add_node_mutation_chance = None
+    add_connection_mutation_chance = None
+
+    compatibility_distance_threshold = 10
+
+    c1 = 1
+    c2 = 1
+    c3 = 0.4
 
     genome_1 = Genome({},{})
     for i in range(1,4):
@@ -299,10 +469,10 @@ if __name__ == "__main__":
     # genome_1.print_genome()
     # genome_2.print_genome()
 
-    print("Number of matching gennes : {}.".format(count_matching_genes(genome_1,genome_2)))
-    print("Number of disjoint genes : {}.".format(count_disjoint_genes(genome_1,genome_2)))
-    print("Number of disjoint genes : {}.".format(count_excess_genes(genome_1,genome_2)))
-    print(compatibility_distance(genome_1,genome_2,1,1,1))
+    print("Number of matching gennes : {}.".format(Genome.count_matching_genes(genome_1,genome_2)))
+    print("Number of disjoint genes : {}.".format(Genome.count_disjoint_genes(genome_1,genome_2)))
+    print("Number of disjoint genes : {}.".format(Genome.count_excess_genes(genome_1,genome_2)))
+    print(Genome.compatibility_distance(genome_1,genome_2))
     # genome_3 = Genome.crossover(genome_2,genome_1)
 
     # genome_1.add_node_gene_mutatio()
@@ -311,5 +481,6 @@ if __name__ == "__main__":
     # genome_1.add_connection_gene_mutation()
     # genome_1.print_genome()
 
-    # genome_1.weight_mutation()
+    # genome_1.mutate()
     # genome_1.print_genome()
+# TODO : - could merge the function calculating the average weight of matching genes, the excess genes and the disjoint genes
