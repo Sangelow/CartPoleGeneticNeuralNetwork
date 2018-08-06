@@ -23,8 +23,6 @@ class Genome():
 
     def add_connection_gene_mutation(self):
 
-        global innovation_number_generator
-
         connection_valid = False
 
         while not(connection_valid):
@@ -51,12 +49,11 @@ class Genome():
         # Generate a random weight
         weight = random.gauss(0,0.3)
         # Create the new connection
-        new_connection = ConnectionGene(node_1.id,node_2.id,weight, True,innovation_number_generator.get_innovation_number())
+        new_connection = ConnectionGene(node_1.id,node_2.id,weight, True)
         # Add the connection to the list
         self.add_connection_gene(new_connection)
 
     def add_node_gene_mutation(self):
-        global innovation_number_generator
         # Choose a random connection
         old_connection = random.choice(list(self.connection_genes.values()))
         # Deactivate the old connection
@@ -66,8 +63,8 @@ class Genome():
         self.add_node_gene(new_node)
         # Create the two new connections
 
-        new_connection_1 = ConnectionGene(old_connection.in_node, new_node.id, 1, True,innovation_number_generator.get_innovation_number())
-        new_connection_2 = ConnectionGene(new_node.id,old_connection.out_node, old_connection.weight, True, innovation_number_generator.get_innovation_number())
+        new_connection_1 = ConnectionGene(old_connection.in_node, new_node.id, 1, True)
+        new_connection_2 = ConnectionGene(new_node.id,old_connection.out_node, old_connection.weight, True)
         # Add the two connection
         self.add_connection_gene(new_connection_1)
         self.add_connection_gene(new_connection_2)
@@ -121,7 +118,7 @@ class Genome():
 
         for connection in self.connection_genes.values():
             if connection.expressed:
-                graph.edge(str(connection.in_node),str(connection.out_node), label=str(connection.innovation_number) + " " + str(connection.weight))
+                graph.edge(str(connection.in_node),str(connection.out_node), label=str(connection.innovation_number))
 
         graph.view()
     
@@ -130,12 +127,15 @@ class Genome():
 
 class ConnectionGene():
 
-    def __init__(self,in_node=int(),out_node = int(), weight = float(), expressed = True, innovation_number=int()):
+    def __init__(self,in_node=int(),out_node = int(), weight = float(), expressed = True):
+        # CHECK IF THE CONNECTION ALREADY EXISTS IN HistoricalMarker <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        global historical_marker
+
         self.in_node = in_node
         self.out_node = out_node
         self.weight = weight
         self.expressed = expressed
-        self.innovation_number = innovation_number
+        self.innovation_number = historical_marker.get_innovation_number(self)
     
     def enable(self):
         self.expressed = True
@@ -164,18 +164,23 @@ class NodeGene():
     def copy(self):
         return copy.deepcopy(self)
 
-class InnovationNumberGenerator():
+class HistoricalMarker():
 
     def __init__(self):
-        self.innovation_number = 10
+        self.existing_connections = {}
+        self.innovation_number = 0
 
-    def get_innovation_number(self):
+    def get_innovation_number(self,new_connection):
+        for connection in self.existing_connections.values():
+            if connection.in_node==new_connection.in_node and connection.out_node==new_connection.out_node:
+                return connection.innovation_number
         self.innovation_number += 1
+        self.existing_connections[self.innovation_number] = new_connection
         return self.innovation_number
 
 if __name__ == "__main__":
 
-    innovation_number_generator = InnovationNumberGenerator()
+    historical_marker = HistoricalMarker()
 
     weight_mutation_chance = 0.8
     probabilty_perturbating = 0.9
@@ -187,12 +192,12 @@ if __name__ == "__main__":
     genome_1.add_node_gene(NodeGene("OUTPUT",4))
     genome_1.add_node_gene(NodeGene("HIDDEN",5))
 
-    genome_1.add_connection_gene(ConnectionGene(1,4,1,True,1))
-    genome_1.add_connection_gene(ConnectionGene(2,4,1,False,2))
-    genome_1.add_connection_gene(ConnectionGene(3,4,1,True,3))
-    genome_1.add_connection_gene(ConnectionGene(2,5,1,True,4))
-    genome_1.add_connection_gene(ConnectionGene(5,4,1,True,5))
-    genome_1.add_connection_gene(ConnectionGene(1,5,1,True,8))
+    genome_1.add_connection_gene(ConnectionGene(1,4,1,True))
+    genome_1.add_connection_gene(ConnectionGene(2,4,1,False))
+    genome_1.add_connection_gene(ConnectionGene(3,4,1,True))
+    genome_1.add_connection_gene(ConnectionGene(2,5,1,True))
+    genome_1.add_connection_gene(ConnectionGene(5,4,1,True))
+    genome_1.add_connection_gene(ConnectionGene(1,5,1,True))
 
     print(genome_1)
 
@@ -203,16 +208,18 @@ if __name__ == "__main__":
     genome_2.add_node_gene(NodeGene("HIDDEN",5))
     genome_2.add_node_gene(NodeGene("HIDDEN",6))
 
-    genome_2.add_connection_gene(ConnectionGene(1,4,1,True,1))
-    genome_2.add_connection_gene(ConnectionGene(2,4,1,False,2))
-    genome_2.add_connection_gene(ConnectionGene(3,4,1,True,3))
-    genome_2.add_connection_gene(ConnectionGene(2,5,1,True,4))
-    genome_2.add_connection_gene(ConnectionGene(5,4,1,False,5))
-    genome_2.add_connection_gene(ConnectionGene(5,6,1,True,6))
-    genome_2.add_connection_gene(ConnectionGene(6,4,1,True,7))
-    genome_2.add_connection_gene(ConnectionGene(3,5,1,True,9))
-    genome_2.add_connection_gene(ConnectionGene(1,6,1,True,10))
+    genome_2.add_connection_gene(ConnectionGene(1,4,1,True))
+    genome_2.add_connection_gene(ConnectionGene(2,4,1,False))
+    genome_2.add_connection_gene(ConnectionGene(3,4,1,True))
+    genome_2.add_connection_gene(ConnectionGene(2,5,1,True))
+    genome_2.add_connection_gene(ConnectionGene(5,4,1,False))
+    genome_2.add_connection_gene(ConnectionGene(5,6,1,True))
+    genome_2.add_connection_gene(ConnectionGene(6,4,1,True))
+    genome_2.add_connection_gene(ConnectionGene(3,5,1,True))
+    genome_2.add_connection_gene(ConnectionGene(1,6,1,True))
 
+    genome_1.print_genome()
+    genome_2.print_genome()
 
     # genome_3 = Genome.crossover(genome_2,genome_1)
 
@@ -222,6 +229,7 @@ if __name__ == "__main__":
     # genome_1.add_connection_gene_mutation()
     # genome_1.print_genome()
 
-    genome_1.weight_mutation()
-    genome_1.print_genome()
+    # genome_1.weight_mutation()
+    # genome_1.print_genome()
+
 
