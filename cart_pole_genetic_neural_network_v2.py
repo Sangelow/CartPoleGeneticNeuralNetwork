@@ -192,7 +192,7 @@ if __name__ == "__main__":
     env = gym.make(env_name)
 
     generation_size = 10
-    mutation_rate = 5/100
+    mutation_rate = 2/100
     parent_number = int(0.2 * generation_size)
 
     generation_number = 1
