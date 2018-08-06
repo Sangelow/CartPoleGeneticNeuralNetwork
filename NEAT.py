@@ -49,7 +49,7 @@ class Genome():
             node_1, node_2 = node_2, node_1
 
         # Generate a random weight
-        weight = 2*random.random()-1
+        weight = random.gauss(0,0.3)
         # Create the new connection
         new_connection = ConnectionGene(node_1.id,node_2.id,weight, True,innovation_number_generator.get_innovation_number())
         # Add the connection to the list
@@ -71,6 +71,12 @@ class Genome():
         # Add the two connection
         self.add_connection_gene(new_connection_1)
         self.add_connection_gene(new_connection_2)
+
+    def weight_mutation(self):
+        global weight_mutation_chance
+        if random.random() < weight_mutation_chance:
+            for connection in list(self.connection_genes.values()):
+                connection.mutate_weight()
 
     def crossover(parent1,parent2):
         # Notice that the parent1 is the most fit parent.
@@ -115,7 +121,7 @@ class Genome():
 
         for connection in self.connection_genes.values():
             if connection.expressed:
-                graph.edge(str(connection.in_node),str(connection.out_node), label=str(connection.innovation_number))
+                graph.edge(str(connection.in_node),str(connection.out_node), label=str(connection.innovation_number) + " " + str(connection.weight))
 
         graph.view()
     
@@ -140,6 +146,15 @@ class ConnectionGene():
     def copy(self):
         return copy.deepcopy(self)
 
+    def mutate_weight(self):
+        global probabilty_perturbating
+        global standard_deviation_weight_perturbation
+        if random.random() < probabilty_perturbating:
+            self.weight +=  random.gauss(0,standard_deviation_weight_perturbation)
+        else:
+            self.weight = random.uniform(-1,1)
+
+
 class NodeGene():
 
     def __init__(self, type=str(), id=int()):
@@ -161,6 +176,10 @@ class InnovationNumberGenerator():
 if __name__ == "__main__":
 
     innovation_number_generator = InnovationNumberGenerator()
+
+    weight_mutation_chance = 0.8
+    probabilty_perturbating = 0.9
+    standard_deviation_weight_perturbation = 0.08
 
     genome_1 = Genome({},{})
     for i in range(1,4):
@@ -194,16 +213,15 @@ if __name__ == "__main__":
     genome_2.add_connection_gene(ConnectionGene(3,5,1,True,9))
     genome_2.add_connection_gene(ConnectionGene(1,6,1,True,10))
 
-    print(genome_2)
 
-    genome_3 = Genome.crossover(genome_2,genome_1)
+    # genome_3 = Genome.crossover(genome_2,genome_1)
 
+    # genome_1.add_node_gene_mutatio()
+    # genome_1.print_genome()
+
+    # genome_1.add_connection_gene_mutation()
+    # genome_1.print_genome()
+
+    genome_1.weight_mutation()
     genome_1.print_genome()
-    # genome_2.print_genome()
-    # genome_3.print_genome()
 
-    #genome_1.add_node_gene_mutation()
-    #genome_1.print_genome()
-
-    genome_1.add_connection_gene_mutation()
-    genome_1.print_genome()
