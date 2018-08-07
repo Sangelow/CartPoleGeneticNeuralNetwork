@@ -296,42 +296,44 @@ class Genome():
                     return self.contains_loop(connection.input_node,output_node)
 
     def act(self,input_values):
-        evaluated_nodes = []
-        ready_nodes = []
-        remaining_nodes = []
-        node_values = {}
-        for node in self.node_genes:
+        node_value = {}
+        # Compute in-degree for each node
+        node_in_degree = {}
+        for node in self.node_genes.values():
+            node_in_degree[node] = 0
+        for node in self.node_genes.values():
+            for connection in self.connection_genes.values():
+                if connection.out_node == node.innovation_number:
+                    node_in_degree[node] += 1
+
+        # Add the ready node in the ready_nodes queue
+        ready_nodes = [node for node in self.node_genes if node_in_degree[node]==0]
+
+        while ready_nodes:
+            node = ready_nodes.pop()
+            # Do the calculation
+            value = 0
             if node.type == "INPUT":
-                node_values[node] = input_values[node.innovation_number]
+                value = input_values[node.innovation_number]
             else :
-                remaining_nodes.append(node)
-
-        while len(evaluated_nodes) != len(self.node_genes):
-            # Find the node that are ready for each remaining_nodes
-            for node in remaining_nodes:
-                ready = True
-                for connection in self.connection_genes:
-                    # If the connection lead to the actual node and the in_node of the connection is not evaluated, then the actual node is not ready
-                    if connection.out_node == node.innovation_number and not(self.node_genes[connection.in_node] in evaluated_nodes):
-                        ready = False
-                        break
-                if ready:
-                    ready_nodes.append(node)
-                    remaining_nodes.remove(node)
-            # Calculate the node that are ready
-            for node in ready_nodes:
-                node_input= 0
-                for connection in self.connection_genes:
+                for connection in self.connection_genes.values():
                     if connection.out_node == node.innovation_number:
-                        node_input += connection.weight*node_values[self.node_genes[connection.out_node]]
+                        value += node_value[self.node_genes[connection.in_node]]
+                node_value[node] = value
+            # Decrease the node_in_degree and add to the ready list any out_node with a zero in-degree
+            for connection in self.connection_genes.values():
+                if connection.in_node == node.innovation_number:
+                    out_node_index = self.connection_genes.out_node
+                    out_node = self.node_genes[out_node_index]
+                    node_in_degree[out_node] -= 1
+                    if node_in_degree[out_node] == 0:
+                        ready_nodes.append(out_node)
 
-                # Apply the activation function
-                node_values[node] = 1/(1+exp(-4.9*node_input))
-                ready_nodes.remove(node)
-                evaluated_nodes.append(node)
-
+        # Check if all the calculation have been done
+        if len(node_value) != len(self.node_genes):
+            input("Error !")
         # Return the value of the output nodes
-        output_nodes = [node.innovation_number if node.type=="OUTPUT" for node in evaluated_nodes]
+        output_nodes = [node for node in evaluated_nodes if node.type=="OUTPUT"]
         output_nodes.sort(key=lambda node : node.innovation_number)
         output_values = [node_values[node] for node in output_nodes]
         return output_values
