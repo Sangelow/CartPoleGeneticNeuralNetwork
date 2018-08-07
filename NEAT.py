@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 
 class Evaluator(ABC):
 
-    def __init__(self,first_genome, population_size):
-        self.genomes = [first_genome]
+    def __init__(self, population_size, input_size, output_size):
+
+        self.genomes = []
         self.species = []
         self.population_size = population_size
 
@@ -15,15 +16,31 @@ class Evaluator(ABC):
         self.genome_species = {} # Dictionnary (key: genome, value: species)
 
         self.fittest_genome = None
-        self.highest_score = None
+        self.highest_fitness = 0
 
         self.next_generation_genomes = []
 
-        # Initialise from a single genome <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        # Create the first genome
+        self.create_first_generation(input_size,output_size)
 
     @abstractmethod
-    def evaluate_genome(self):
+    def evaluate_genome(self,genome):
         pass
+
+    def create_first_generation(self,input_size,output_size):
+        genome = Genome({},{})
+        for i in range(input_size):
+            genome.add_node_gene(NodeGene("INPUT"))
+        for i in range(output_size):
+            genome.add_node_gene(NodeGene("OUTPUT"))
+        for node_1 in list(genome.node_genes.values()):
+            for node_2 in list(genome.node_genes.values()):
+                if node_1.type == "INPUT" and node_2.type == "OUTPUT":
+                    new_connection = ConnectionGene(node_1.innovation_number,node_2.innovation_number, random.uniform(-1,1),True)
+                    genome.add_connection_gene(new_connection)
+        self.genomes.append(genome)
+        while len(self.genomes) < self.population_size:
+            self.genomes.append(genome.copy())
 
     def evaluate(self):
         # Reset the Evaluator
@@ -52,8 +69,8 @@ class Evaluator(ABC):
         for genome in self.genomes:
             found_species = False
             for species in self.species:
-                if Genome.compatibility_distance(self.species.mascot, genome) < compatibility_distance_threshold:
-                    self.species.add_genome(genome)
+                if Genome.compatibility_distance(species.mascot, genome) < compatibility_distance_threshold:
+                    species.add_genome(genome)
                     self.genome_species[genome] = species
                     found_species = True
                     break
@@ -79,14 +96,14 @@ class Evaluator(ABC):
             genome_species.add_adjusted_fitness(adjusted_fitness)
             genome_species.add_genome_fitness(genome, adjusted_fitness)
 
-            if adjusted_fitness > self.highest_score:
-                self.highest_score = adjusted_fitness
+            if adjusted_fitness > self.highest_fitness:
+                self.highest_fitness = adjusted_fitness
                 self.fittest_genome = genome
 
     def start_next_generation(self):
         for species in self.species:
             fittest_genome = max(species.genome_fitness, key=species.genome_fitness.get)
-            next_generation_genomes.append(fittest_genome)
+            self.next_generation_genomes.append(fittest_genome)
 
     def complete_next_generation(self):
 
@@ -95,10 +112,10 @@ class Evaluator(ABC):
         global add_node_mutation_chance
 
         while len(self.next_generation_genomes) < self.population_size:
-            species = get_random_species_biased_adjusted_fitness()
+            species = self.get_random_species_biased_adjusted_fitness()
 
-            genome_1 = get_random_genome_biased_adjusted_fitness(species)
-            genome_2 = get_random_genome_biased_adjusted_fitness(species)
+            genome_1 = self.get_random_genome_biased_adjusted_fitness(species)
+            genome_2 = self.get_random_genome_biased_adjusted_fitness(species)
 
             if self.genome_fitness[genome_1] >= self.genome_fitness[genome_2]:
                 child = Genome.crossover(genome_1,genome_2)
@@ -150,7 +167,7 @@ class Species():
         self.total_adjusted_fitness = 0
 
     def add_genome(self,genome):
-        self.genomes.append[genome]
+        self.genomes.append(genome)
 
     def add_adjusted_fitness(self, adjusted_fitness):
         self.total_adjusted_fitness += adjusted_fitness
@@ -403,7 +420,8 @@ class HistoricalMarker():
     def __init__(self):
         self.existing_connections = {}
         self.existing_nodes = {}
-        self.innovation_number = 0
+        self.connection_innovation_number = 0
+        self.node_innovation_number = 0
 
     def get_innovation_number(self,new_gene):
         if new_gene.__class__.__name__ == "ConnectionGene":
@@ -411,13 +429,13 @@ class HistoricalMarker():
             for connection in self.existing_connections.values():
                 if connection.in_node==new_connection.in_node and connection.out_node==new_connection.out_node:
                     return connection.innovation_number
-            self.innovation_number += 1
-            self.existing_connections[self.innovation_number] = new_connection
-            return self.innovation_number
+            self.connection_innovation_number += 1
+            self.existing_connections[self.connection_innovation_number] = new_connection
+            return self.connection_innovation_number
         elif new_gene.__class__.__name__ == "NodeGene":
-            self.innovation_number += 1
-            self.existing_nodes[self.innovation_number] = new_gene
-            return self.innovation_number
+            self.node_innovation_number += 1
+            self.existing_nodes[self.node_innovation_number] = new_gene
+            return self.node_innovation_number
 
 if __name__ == "__main__":
 
@@ -427,14 +445,21 @@ if __name__ == "__main__":
     probabilty_perturbating = 0.9
     standard_deviation_weight_perturbation = 0.08
 
-    add_node_mutation_chance = None
-    add_connection_mutation_chance = None
+    add_node_mutation_chance = 0.1
+    add_connection_mutation_chance = 0.1
 
     compatibility_distance_threshold = 10
 
     c1 = 1
     c2 = 1
     c3 = 0.4
+
+
+
+
+
+
+    
 
     genome_1 = Genome({},{})
     for i in range(1,4):
@@ -473,6 +498,9 @@ if __name__ == "__main__":
     print("Number of disjoint genes : {}.".format(Genome.count_disjoint_genes(genome_1,genome_2)))
     print("Number of disjoint genes : {}.".format(Genome.count_excess_genes(genome_1,genome_2)))
     print(Genome.compatibility_distance(genome_1,genome_2))
+
+    evaluator = Evaluator(10,4,4)
+    evaluator.evaluate()
     # genome_3 = Genome.crossover(genome_2,genome_1)
 
     # genome_1.add_node_gene_mutatio()
@@ -484,3 +512,5 @@ if __name__ == "__main__":
     # genome_1.mutate()
     # genome_1.print_genome()
 # TODO : - could merge the function calculating the average weight of matching genes, the excess genes and the disjoint genes
+#        - change the historical marker to do a counter
+#        - create the first generation (generate the first simple neuron and create child from this neuron) 
