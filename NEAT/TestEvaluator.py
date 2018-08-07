@@ -3,7 +3,7 @@ from NEAT import Evaluator
 class TestEvaluator(Evaluator):
 
     def evaluate_genome(self,genome):
-        return -(len(genome.connection_genes)-20)**2 + 500
+        pass
 
 
 if __name__ == "__main__":

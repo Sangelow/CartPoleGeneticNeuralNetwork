@@ -1,3 +1,4 @@
+from math import exp
 import random
 import copy
 from graphviz import Digraph
@@ -293,6 +294,47 @@ class Genome():
             for connection in list(self.connection_genes.values()):
                 if input_node == connection.out_node:
                     return self.contains_loop(connection.input_node,output_node)
+
+    def act(self,input_values):
+        evaluated_nodes = []
+        ready_nodes = []
+        remaining_nodes = []
+        node_values = {}
+        for node in self.node_genes:
+            if node.type == "INPUT":
+                node_values[node] = input_values[node.innovation_number]
+            else :
+                remaining_nodes.append(node)
+
+        while len(evaluated_nodes) != len(self.node_genes):
+            # Find the node that are ready for each remaining_nodes
+            for node in remaining_nodes:
+                ready = True
+                for connection in self.connection_genes:
+                    # If the connection lead to the actual node and the in_node of the connection is not evaluated, then the actual node is not ready
+                    if connection.out_node == node.innovation_number and not(self.node_genes[connection.in_node] in evaluated_nodes):
+                        ready = False
+                        break
+                if ready:
+                    ready_nodes.append(node)
+                    remaining_nodes.remove(node)
+            # Calculate the node that are ready
+            for node in ready_nodes:
+                node_input= 0
+                for connection in self.connection_genes:
+                    if connection.out_node == node.innovation_number:
+                        node_input += connection.weight*node_values[self.node_genes[connection.out_node]]
+
+                # Apply the activation function
+                node_values[node] = 1/(1+exp(-4.9*node_input))
+                ready_nodes.remove(node)
+                evaluated_nodes.append(node)
+
+        # Return the value of the output nodes
+        output_nodes = [node.innovation_number if node.type=="OUTPUT" for node in evaluated_nodes]
+        output_nodes.sort(key=lambda node : node.innovation_number)
+        output_values = [node_values[node] for node in output_nodes]
+        return output_values
 
     def print_genome(self):
         id = str(uuid.uuid4())
