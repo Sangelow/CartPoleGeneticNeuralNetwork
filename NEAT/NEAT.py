@@ -296,7 +296,7 @@ class Genome():
                     return self.contains_loop(connection.input_node,output_node)
 
     def act(self,input_values):
-        node_value = {}
+        node_values = {}
         # Compute in-degree for each node
         node_in_degree = {}
         for node in self.node_genes.values():
@@ -307,33 +307,34 @@ class Genome():
                     node_in_degree[node] += 1
 
         # Add the ready node in the ready_nodes queue
-        ready_nodes = [node for node in self.node_genes if node_in_degree[node]==0]
+        ready_nodes = [node for node in self.node_genes.values() if node_in_degree[node]==0]
 
         while ready_nodes:
             node = ready_nodes.pop()
             # Do the calculation
             value = 0
             if node.type == "INPUT":
-                value = input_values[node.innovation_number]
+                value = input_values[node.innovation_number-1]
             else :
                 for connection in self.connection_genes.values():
                     if connection.out_node == node.innovation_number:
-                        value += node_value[self.node_genes[connection.in_node]]
-                node_value[node] = value
+                        value += node_values[self.node_genes[connection.in_node]]
+            node_values[node] = value
             # Decrease the node_in_degree and add to the ready list any out_node with a zero in-degree
             for connection in self.connection_genes.values():
                 if connection.in_node == node.innovation_number:
-                    out_node_index = self.connection_genes.out_node
+                    out_node_index = connection.out_node
                     out_node = self.node_genes[out_node_index]
                     node_in_degree[out_node] -= 1
                     if node_in_degree[out_node] == 0:
                         ready_nodes.append(out_node)
 
         # Check if all the calculation have been done
-        if len(node_value) != len(self.node_genes):
+        if len(node_values) != len(self.node_genes):
+            genome.print_genome()
             input("Error !")
         # Return the value of the output nodes
-        output_nodes = [node for node in evaluated_nodes if node.type=="OUTPUT"]
+        output_nodes = [node for node in node_values.keys() if node.type=="OUTPUT"]
         output_nodes.sort(key=lambda node : node.innovation_number)
         output_values = [node_values[node] for node in output_nodes]
         return output_values
