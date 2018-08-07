@@ -95,7 +95,7 @@ class Evaluator(ABC):
 
     def remove_dormant_species(self):
         for species in self.species:
-            if not(species):
+            if len(species.genomes) == 0:
                 self.species.remove(species)
 
     def evaluate_genomes(self):
@@ -153,6 +153,7 @@ class Evaluator(ABC):
         count_fitness = 0
         for species in self.species:
             count_fitness += species.total_adjusted_fitness
+
             if count_fitness >= goal_fitness:
                 return species
 
@@ -168,9 +169,10 @@ class Evaluator(ABC):
                 return genome
 
     def generation_info_display(self):
-        pass
-        # Add the display of the fittest number each 5/10 generations
-        # Add the number of species, highest fitness
+        print("Number of species: {}.".format(len(self.species)))
+        print("Highest fitness: {}.".format(self.highest_fitness))
+        if self.generation_number % 10 == 0:
+            self.fittest_genome.print_genome()
 
 class Species():
 
@@ -226,9 +228,6 @@ class Genome():
             # Randomly select two nodes
             node_1 = random.choice(list(self.node_genes.values()))
             node_2 = random.choice(list(self.node_genes.values()))
-            # Check if the connection is between a node and himself
-            if node_1.innovation_number == node_2.innovation_number:
-                connection_valid = False
             # Check if the nodes are both INPUT or both OUTPUT
             if (node_1.type=="INPUT" and node_2.type=="INPUT") or (node_1.type=="OUTPUT" and node_2.type=="OUTPUT"):
                 connection_valid = False
@@ -236,17 +235,21 @@ class Genome():
             for connection in self.connection_genes.values():
                 if (connection.in_node==node_1.innovation_number and connection.out_node==node_2.innovation_number) or (connection.in_node==node_2.innovation_number and connection.out_node==node_1.innovation_number):
                     connection_valid = False
+            # Check if the connection lead to a loop
+            if connection_valid and self.contains_loop(node_1,node_2):
+                connection_valid = False
 
-        # Find the correct direction of the connection
-        if (node_1.type=="HIDDEN" and node_2.type =="INPUT") or (node_1.type=="OUTPUT" and node_2.type=="HIDDEN") or (node_1.type=="OUTPUT" and node_2.type =="INPUT"):
-            node_1, node_2 = node_2, node_1
+        if connection_valid:
+            # Find the correct direction of the connection
+            if (node_1.type=="HIDDEN" and node_2.type =="INPUT") or (node_1.type=="OUTPUT" and node_2.type=="HIDDEN") or (node_1.type=="OUTPUT" and node_2.type =="INPUT"):
+                node_1, node_2 = node_2, node_1
 
-        # Generate a random weight
-        weight = random.gauss(0,0.3)
-        # Create the new connection
-        new_connection = ConnectionGene(node_1.innovation_number,node_2.innovation_number,weight, True, historical_marker)
-        # Add the connection to the list
-        self.add_connection_gene(new_connection)
+            # Generate a random weight
+            weight = random.gauss(0,0.3)
+            # Create the new connection
+            new_connection = ConnectionGene(node_1.innovation_number,node_2.innovation_number,weight, True, historical_marker)
+            # Add the connection to the list
+            self.add_connection_gene(new_connection)
 
     def add_node_gene_mutation(self,historical_marker):
         # Choose a random connection
@@ -282,6 +285,14 @@ class Genome():
                 # Disjoint or excess gene
                 child.add_connection_gene(connection.copy())
         return child
+
+    def contains_loop(self,input_node,output_node):
+        if input_node == output_node:
+            return True
+        else :
+            for connection in list(self.connection_genes.values()):
+                if input_node == connection.out_node:
+                    return self.contains_loop(connection.input_node,output_node)
 
     def print_genome(self):
         id = str(uuid.uuid4())
@@ -465,5 +476,7 @@ if __name__ == "__main__":
     c3 = 0.4
 
 # TODO : - could merge the function calculating the average weight of matching genes, the excess genes and the disjoint genes
-#        - change the historical marker to do a counter
-#        - create the first generation (generate the first simple neuron and create child from this neuron) 
+#        - add a mean to follow the evolution of each species (add a random id to each species or something like that) and then plot the evolution of the proportion of each species
+#        - Evan Hawkins When you make a new connection, examine the node the connection comes from. Now, scan through all the nodes that feed into that node, and do this recursively.
+#          This way, you can find all the nodes in the network whose output will reach the node you're examining. When you have that list of nodes, you just check that the new connections 
+#          end-node is not on it. If it is, you will create a circular structure by allowing the connection. I do this check before adding new connections.﻿

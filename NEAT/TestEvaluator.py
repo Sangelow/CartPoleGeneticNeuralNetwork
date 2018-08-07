@@ -3,12 +3,12 @@ from NEAT import Evaluator
 class TestEvaluator(Evaluator):
 
     def evaluate_genome(self,genome):
-        return len(genome.node_genes)
+        return -(len(genome.connection_genes)-20)**2 + 500
 
 
 if __name__ == "__main__":
 
-    generation_size = 50
+    generation_size = 100
     input_size = 2
     output_size = 2
     
@@ -17,7 +17,7 @@ if __name__ == "__main__":
     add_connection_mutation_chance = 0.1
     add_node_mutation_chance = 0.1
 
-    compatibility_distance_threshold = 10
+    compatibility_distance_threshold = 3
     c1, c2, c3 = 1, 1, 0.4 
 
 
